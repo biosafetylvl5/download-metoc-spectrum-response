@@ -6,14 +6,11 @@ authors = ["Gwyn Uttmark <biosafetylevel5@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/biosafetylvl5/download-metoc-spectrum-response"
 
-packages = [{include="project", from="src"}]
+packages = [{include="download_metoc_spectrum_response", from="src"}]
 
 readme = "README.md"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -27,7 +24,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4.0"
+python = ">=3.11,<4.0"
 # Core dependencies for SRF downloader
 aiohttp = "^3.8.0"
 PyYAML = "^6.0"
@@ -89,7 +86,7 @@ Issues = "https://github.com/biosafetylvl5/download-metoc-spectrum-response/issu
 Documentation = "https://biosafetylvl5.github.io/download-metoc-spectrum-response/"
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -141,7 +138,7 @@ exclude_lines = [
 ]
 
 [tool.black]
-target-version = ['py38']
+target-version = ['py311']
 line-length = 100  # Slightly longer for functional style
 skip-string-normalization = true
 

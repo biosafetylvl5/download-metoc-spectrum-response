@@ -11,7 +11,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from functools import partial, reduce
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Optional
 
 import aiohttp
 import typer
@@ -37,6 +37,25 @@ HTTP_OK = 200
 DEFAULT_OUTPUT_DIR = "srf_downloads"
 DEFAULT_MAX_CONCURRENT = 5
 
+# Typer defaults - defined at module level to avoid B008
+YAML_FILE_ARG = typer.Argument(None, help="Path to SRF YAML file (uses default if not provided)")
+OUTPUT_DIR_OPT = typer.Option(Path(DEFAULT_OUTPUT_DIR), "--output", "-o", help="Output directory")
+PLATFORM_OPT = typer.Option(None, "--platform", "-p", help="Filter by platform")
+INSTRUMENT_OPT = typer.Option(
+    None, "--instrument", "-i", help="Filter by instrument"
+)
+CHANNEL_OPT = typer.Option(None, "--channel", "-c", help="Filter by channel")
+FILE_TYPE_OPT = typer.Option(None, "--type", "-t", help="Filter by file type")
+FILE_TYPE_SEARCH_OPT = typer.Option(
+    None, "--type", "-t", help="Filter by file type (txt, tar.gz, flt)"
+)
+MAX_CONCURRENT_OPT = typer.Option(
+    DEFAULT_MAX_CONCURRENT, "--concurrent", help="Maximum concurrent downloads"
+)
+DRY_RUN_OPT = typer.Option(
+    False, "--dry-run", help="Show what would be downloaded without downloading"
+)
+
 
 class SRFFileError(Exception):
     """Base exception for SRF file operations."""
@@ -59,8 +78,8 @@ class SRFFile:
     file_type: str
     platform: str
     instrument: str
-    channel: str | None = None
-    description: str | None = None
+    channel: Optional[str] = None
+    description: Optional[str] = None
 
     @classmethod
     def from_dict(
@@ -129,7 +148,7 @@ def get_default_yaml_path() -> Path:
     _raise_file_not_found_error(default_path, fallback_path)
 
 
-def resolve_yaml_path(yaml_file: Path | None) -> Path:
+def resolve_yaml_path(yaml_file: Optional[Path]) -> Path:
     """
     Resolve the YAML file path, using default if not provided.
 
@@ -200,14 +219,14 @@ def extract_srf_files(data: dict[str, Any]) -> list[SRFFile]:
     """
 
     def process_file_type(
-        file_type: str, platforms: dict[str, Any],
+        file_type: str, platforms: dict[str, Any]
     ) -> Iterator[SRFFile]:
         """Process a single file type and yield SRF files."""
         for platform, instruments in platforms.items():
             for instrument, files in instruments.items():
                 for file_data in files:
                     yield SRFFile.from_dict(
-                        file_data, platform, instrument, file_type,
+                        file_data, platform, instrument, file_type
                     )
 
     srf_files_data = data.get("srf_files", {})
@@ -228,7 +247,7 @@ def filter_by_platform(srf_files: list[SRFFile], platform: str) -> list[SRFFile]
 def filter_by_instrument(srf_files: list[SRFFile], instrument: str) -> list[SRFFile]:
     """Filter SRF files by instrument."""
     return list(
-        filter(lambda f: f.instrument.lower() == instrument.lower(), srf_files),
+        filter(lambda f: f.instrument.lower() == instrument.lower(), srf_files)
     )
 
 
@@ -260,10 +279,10 @@ def compose_filters(*filters: FilterFunction) -> FilterFunction:
 
 
 def build_filter_chain(
-    platform: str | None = None,
-    instrument: str | None = None,
-    channel: str | None = None,
-    file_type: str | None = None,
+    platform: Optional[str] = None,
+    instrument: Optional[str] = None,
+    channel: Optional[str] = None,
+    file_type: Optional[str] = None,
 ) -> FilterFunction:
     """
     Build a filter chain based on provided criteria using functional composition.
@@ -293,7 +312,7 @@ def build_filter_chain(
 
 
 def get_unique_values(
-    srf_files: list[SRFFile], key_func: Callable[[SRFFile], str],
+    srf_files: list[SRFFile], key_func: Callable[[SRFFile], str]
 ) -> list[str]:
     """
     Get unique values from SRF files using a key function.
@@ -327,7 +346,7 @@ def display_available_options(srf_files: list[SRFFile]) -> None:
 
 
 def display_filtered_files(
-    srf_files: list[SRFFile], title: str = "Filtered SRF Files",
+    srf_files: list[SRFFile], title: str = "Filtered SRF Files"
 ) -> None:
     """Display filtered SRF files in a table."""
     if not srf_files:
@@ -343,7 +362,7 @@ def display_filtered_files(
 
     # Sort files for consistent display
     sorted_files = sorted(
-        srf_files, key=lambda f: (f.platform, f.instrument, f.filename),
+        srf_files, key=lambda f: (f.platform, f.instrument, f.filename)
     )
 
     for srf_file in sorted_files:
@@ -408,7 +427,7 @@ async def download_file(
 
 
 async def download_files(
-    srf_files: list[SRFFile], output_dir: Path, max_concurrent: int = 5,
+    srf_files: list[SRFFile], output_dir: Path, max_concurrent: int = 5
 ) -> dict[str, int]:
     """
     Download multiple SRF files concurrently.
@@ -447,14 +466,14 @@ async def download_files(
         )
 
         async with aiohttp.ClientSession(
-            connector=connector, timeout=timeout,
+            connector=connector, timeout=timeout
         ) as session:
             semaphore = asyncio.Semaphore(max_concurrent)
 
             async def download_with_semaphore(srf_file: SRFFile) -> bool:
                 async with semaphore:
                     return await download_file(
-                        session, srf_file, output_dir, progress, task,
+                        session, srf_file, output_dir, progress, task
                     )
 
             results = await asyncio.gather(
@@ -473,7 +492,7 @@ async def download_files(
     }
 
 
-def load_and_extract_srf_data(yaml_file: Path | None) -> list[SRFFile]:
+def load_and_extract_srf_data(yaml_file: Optional[Path]) -> list[SRFFile]:
     """
     Load and extract SRF data from YAML file.
 
@@ -491,58 +510,30 @@ def load_and_extract_srf_data(yaml_file: Path | None) -> list[SRFFile]:
 
 @app.command()
 def list_options(
-    yaml_file: Path | None = None,
+    yaml_file: Optional[Path] = YAML_FILE_ARG,
 ) -> None:
     """List available platforms, instruments, and file types."""
-    if yaml_file is None:
-        yaml_file = typer.Argument(
-            None, help="Path to SRF YAML file (uses default if not provided)",
-        )
-
     srf_files = load_and_extract_srf_data(yaml_file)
 
     console.print(
         Panel.fit(
             f"[bold green]Total SRF Files: {len(srf_files)}[/bold green]",
             title="SRF Data Summary",
-        ),
+        )
     )
 
     display_available_options(srf_files)
 
 
-@dataclass
-class SearchFilters:
-    """Data class for search filter parameters."""
-
-    platform: str | None = None
-    instrument: str | None = None
-    channel: str | None = None
-    file_type: str | None = None
-
-
 @app.command()
 def search(
-    yaml_file: Path | None = None,
-    platform: str | None = None,
-    instrument: str | None = None,
-    channel: str | None = None,
-    file_type: str | None = None,
+    yaml_file: Optional[Path] = YAML_FILE_ARG,
+    platform: Optional[str] = PLATFORM_OPT,
+    instrument: Optional[str] = INSTRUMENT_OPT,
+    channel: Optional[str] = CHANNEL_OPT,
+    file_type: Optional[str] = FILE_TYPE_SEARCH_OPT,
 ) -> None:
     """Search and display SRF files based on criteria."""
-    if yaml_file is None:
-        yaml_file = typer.Argument(
-            None, help="Path to SRF YAML file (uses default if not provided)",
-        )
-
-    # Set up options with proper defaults
-    platform = typer.Option(None, "--platform", "-p", help="Filter by platform")
-    instrument = typer.Option(None, "--instrument", "-i", help="Filter by instrument")
-    channel = typer.Option(None, "--channel", "-c", help="Filter by channel")
-    file_type = typer.Option(
-        None, "--type", "-t", help="Filter by file type (txt, tar.gz, flt)",
-    )
-
     srf_files = load_and_extract_srf_data(yaml_file)
 
     # Build and apply filter chain
@@ -552,47 +543,18 @@ def search(
     display_filtered_files(filtered_files, "Search Results")
 
 
-@dataclass
-class DownloadConfig:
-    """Configuration for download operations."""
-
-    output_dir: Path = Path(DEFAULT_OUTPUT_DIR)
-    max_concurrent: int = DEFAULT_MAX_CONCURRENT
-    dry_run: bool = False
-
-
 @app.command()
 def download(
-    yaml_file: Path | None = None,
-    output_dir: Path = Path(DEFAULT_OUTPUT_DIR),
-    platform: str | None = None,
-    instrument: str | None = None,
-    channel: str | None = None,
-    file_type: str | None = None,
-    max_concurrent: int = DEFAULT_MAX_CONCURRENT,
-    dry_run: bool = False,
+    yaml_file: Optional[Path] = YAML_FILE_ARG,
+    output_dir: Path = OUTPUT_DIR_OPT,
+    platform: Optional[str] = PLATFORM_OPT,
+    instrument: Optional[str] = INSTRUMENT_OPT,
+    channel: Optional[str] = CHANNEL_OPT,
+    file_type: Optional[str] = FILE_TYPE_OPT,
+    max_concurrent: int = MAX_CONCURRENT_OPT,
+    dry_run: bool = DRY_RUN_OPT,
 ) -> None:
     """Download SRF files based on criteria."""
-    # Set up arguments and options with proper defaults
-    if yaml_file is None:
-        yaml_file = typer.Argument(
-            None, help="Path to SRF YAML file (uses default if not provided)",
-        )
-
-    output_dir = typer.Option(
-        Path(DEFAULT_OUTPUT_DIR), "--output", "-o", help="Output directory",
-    )
-    platform = typer.Option(None, "--platform", "-p", help="Filter by platform")
-    instrument = typer.Option(None, "--instrument", "-i", help="Filter by instrument")
-    channel = typer.Option(None, "--channel", "-c", help="Filter by channel")
-    file_type = typer.Option(None, "--type", "-t", help="Filter by file type")
-    max_concurrent = typer.Option(
-        DEFAULT_MAX_CONCURRENT, "--concurrent", help="Maximum concurrent downloads",
-    )
-    dry_run = typer.Option(
-        False, "--dry-run", help="Show what would be downloaded without downloading",
-    )
-
     srf_files = load_and_extract_srf_data(yaml_file)
 
     # Build and apply filter chain
@@ -642,14 +604,9 @@ def download(
 
 @app.command()
 def info(
-    yaml_file: Path | None = None,
+    yaml_file: Optional[Path] = YAML_FILE_ARG,
 ) -> None:
     """Show information about the SRF data file."""
-    if yaml_file is None:
-        yaml_file = typer.Argument(
-            None, help="Path to SRF YAML file (uses default if not provided)",
-        )
-
     yaml_path = resolve_yaml_path(yaml_file)
     data = load_srf_data(yaml_path)
     srf_files = extract_srf_files(data)
