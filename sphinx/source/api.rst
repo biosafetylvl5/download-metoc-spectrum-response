@@ -4,7 +4,7 @@ API
 Main Module
 ^^^^^^^^^^^
 
-.. automodule:: PROJECT.PROJECT
+.. automodule:: download-metoc-spectrum-response.download-metoc-spectrum-response
    :members:
    :undoc-members:
    :private-members:
