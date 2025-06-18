@@ -37,18 +37,21 @@ sphinx = { version = "^7.2.0", optional = true }
 sphinxcontrib-runcmd = { version = "*", optional = true }
 sphinxcontrib-napoleon = { version = "*", optional = true }
 sphinx-argparse = { version = "^0.4.0", optional = true }
+pinkrst = { version = "*", optional = true }
+doc8 = { version = "*", optional = true }
+brassy = { version = "*", optional = true }
 
-[tool.poetry.group.dev.dependencies]
-# Development dependencies that are always installed for development
-pytest = "^7.4.0"
-pytest-cov = "^4.1.0"
-pytest-asyncio = "^0.21.0"  # Added for testing async functions
-aioresponses = "^0.7.4"     # Added for mocking HTTP responses in tests
-black = "^23.7.0"
-ruff = "^0.0.287"
-mypy = "^1.5.1"
-pre-commit = "^3.3.3"
-brassy = "*"
+# Lint group dependencies (optional)
+ruff = { version = "*", optional = true }
+mypy = { version = "*", optional = true }
+prettier = { version = "*", optional = true }
+
+# Test group dependencies (optional)
+pytest = { version = "*", optional = true }
+pytest-cov = { version = "*", optional = true }
+pytest-xdist = { version = "*", optional = true }
+pytest-asyncio = { version = "*", optional = true }
+aioresponses = { version = "*", optional = true }
 
 [tool.poetry.extras]
 doc = [
@@ -73,12 +76,12 @@ test = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "pytest-asyncio",  # for async test support
-    "aioresponses",    # for HTTP mocking
+    "pytest-asyncio",
+    "aioresponses",
 ]
 
 [tool.poetry.scripts]
-srf-downloader = "download_metoc_spectrum_response.download_metoc_spectrum_response:app"  # Main CLI entry point
+srf-download = "download_metoc_spectrum_response.download_metoc_spectrum_response:app"  # Main CLI entry point
 
 [tool.poetry.urls]
 Homepage = "https://github.com/biosafetylvl5/download-metoc-spectrum-response"
